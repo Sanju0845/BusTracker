@@ -1,4 +1,4 @@
-package com.kmce.bustrack
+package com.bustrack
 
 import android.app.Application
 import android.content.res.Configuration

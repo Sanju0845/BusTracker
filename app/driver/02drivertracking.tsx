@@ -22,6 +22,13 @@ export default function DriverTrackingScreen() {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<MapView | null>(null);
 
+  const [region, setRegion] = useState({
+    latitude: 17.3685468, // Chaitanyapuri coordinates
+    longitude: 78.5329092,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+
   useEffect(() => {
     requestLocationPermission();
     return () => {
@@ -84,6 +91,12 @@ export default function DriverTrackingScreen() {
       };
 
       setCurrentLocation(locationData);
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
       updateLocationInDatabase(locationData);
 
       // Start watching position with more battery-friendly settings
@@ -100,6 +113,12 @@ export default function DriverTrackingScreen() {
             timestamp: Date.now(),
           };
           setCurrentLocation(newLocationData);
+          setRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
           updateLocationInDatabase(newLocationData);
         }
       );
@@ -207,35 +226,26 @@ export default function DriverTrackingScreen() {
                   <Text style={styles.loadingText}>Loading map...</Text>
                 </View>
               )}
-              {currentLocation && (
-                <MapView
-                  ref={mapRef}
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: currentLocation.latitude,
-                    longitude: currentLocation.longitude,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
-                  }}
-                  region={{
-                    latitude: currentLocation.latitude,
-                    longitude: currentLocation.longitude,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
-                  }}
-                  provider={PROVIDER_DEFAULT}
-                  onMapReady={handleMapReady}
-                  rotateEnabled={false}
-                  loadingEnabled={true}
-                  showsUserLocation={false}
-                  showsMyLocationButton={false}
-                  moveOnMarkerPress={false}
-                >
-                  <UrlTile 
-                    urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    maximumZ={19}
-                    flipY={false}
-                  />
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                region={region}
+                provider={PROVIDER_DEFAULT}
+                onMapReady={handleMapReady}
+                rotateEnabled={false}
+                loadingEnabled={true}
+                showsUserLocation={false}
+                showsMyLocationButton={false}
+                moveOnMarkerPress={false}
+                initialRegion={region}
+              >
+                <UrlTile 
+                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  flipY={false}
+                  zIndex={-1}
+                />
+                {currentLocation && (
                   <Marker
                     coordinate={{
                       latitude: currentLocation.latitude,
@@ -243,13 +253,14 @@ export default function DriverTrackingScreen() {
                     }}
                     title={`Bus ${busNumber}`}
                     description="Current Location"
+                    zIndex={1}
                   >
                     <View style={styles.customMarker}>
                       <Text style={styles.markerEmoji}>🚌</Text>
                     </View>
                   </Marker>
-                </MapView>
-              )}
+                )}
+              </MapView>
             </View>
 
             <View style={styles.footer}>

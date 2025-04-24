@@ -1,4 +1,4 @@
-package com.kmce.bustrack
+package com.bustrack
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

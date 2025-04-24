@@ -67,11 +67,11 @@ export default function BusRouteScreen() {
           };
 
           return {
-            stop_name: stop.stop_name,
+          stop_name: stop.stop_name,
             arrival_time: formatTime(stop.arrival_time),
             departure_time: stop.stop_name === 'KMCE College' ? '-' : formatTime(stop.departure_time),
-            latitude: stop.latitude,
-            longitude: stop.longitude
+          latitude: stop.latitude,
+          longitude: stop.longitude
           };
         });
 
@@ -191,8 +191,8 @@ export default function BusRouteScreen() {
                     {intermediateStops.map((stop, index) => (
                       <View key={index} style={styles.intermediateStop}>
                         <View style={styles.timelineDot} />
-                        <View style={styles.stopInfo}>
-                          <Text style={styles.stopName}>{stop.stop_name}</Text>
+            <View style={styles.stopInfo}>
+              <Text style={styles.stopName}>{stop.stop_name}</Text>
                           <View style={styles.timeContainer}>
                             <View style={styles.timeBlock}>
                               <Text style={styles.timeLabel}>Arrival</Text>
@@ -231,13 +231,13 @@ export default function BusRouteScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.trackButton}
-          onPress={handleTrackBus}
-        >
+              <TouchableOpacity 
+                style={styles.trackButton}
+                onPress={handleTrackBus}
+              >
           <Ionicons name="map" size={20} color="#fff" />
           <Text style={styles.trackButtonText}>Track Live Location</Text>
-        </TouchableOpacity>
+              </TouchableOpacity>
       </ScrollView>
     </View>
   );

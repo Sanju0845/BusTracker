@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 // Set up notifications
 Notifications.setNotificationHandler({
@@ -62,6 +63,14 @@ export default function BusTrackingScreen() {
   const [busStatus, setBusStatus] = useState<string>('');
   const [routeCoordinates, setRouteCoordinates] = useState<any[]>([]);
 
+  // Update initial region state with a default value
+  const [region, setRegion] = useState({
+    latitude: 17.3850,
+    longitude: 78.4867,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1,
+  });
+
   const { busNumber } = useLocalSearchParams<{ busNumber: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -98,6 +107,33 @@ export default function BusTrackingScreen() {
 
   useEffect(() => {
     registerForPushNotificationsAsync();
+  }, []);
+
+  // Update location permission check
+  useEffect(() => {
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setError('Permission to access location was denied');
+          return;
+        }
+
+        let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
+      } catch (err) {
+        console.error('Error getting location:', err);
+        // Keep default region if location fails
+      }
+    })();
   }, []);
 
   const registerForPushNotificationsAsync = async () => {
@@ -245,11 +281,11 @@ export default function BusTrackingScreen() {
       }
     });
 
-    const currentStopData = routeStops[closestStopIndex];
-    const nextStopData = routeStops[closestStopIndex + 1];
+      const currentStopData = routeStops[closestStopIndex];
+      const nextStopData = routeStops[closestStopIndex + 1];
 
-    // Calculate distance in kilometers
-    const distanceToStop = minDistance * 111; // Rough conversion from degrees to km
+      // Calculate distance in kilometers
+      const distanceToStop = minDistance * 111; // Rough conversion from degrees to km
 
     // Update status and send notifications based on distance
     if (distanceToStop <= 0.2) { // Within 200 meters
@@ -277,9 +313,9 @@ export default function BusTrackingScreen() {
         setBusStatus(`Arriving at ${currentStopData.stop_name} in ${Math.round(distanceToStop * 1000)}m`);
         if (lastNotifiedStop !== closestStopIndex) {
           sendNotificationWithCooldown(
-            `Bus ${busNumber} Approaching`,
+          `Bus ${busNumber} Approaching`,
             `Bus is arriving at ${currentStopData.stop_name} in ${etaMinutes} minutes (${Math.round(distanceToStop * 1000)}m away)`
-          );
+        );
         }
       }
     } else {
@@ -312,8 +348,8 @@ export default function BusTrackingScreen() {
 
       const currentTime = currentHours * 60 + currentMinutes;
       const nextTime = nextHours * 60 + nextMinutes;
-      
-      return nextTime - currentTime;
+    
+    return nextTime - currentTime;
     } catch (err) {
       console.error('Error calculating ETA:', err);
       return 0;
@@ -322,12 +358,12 @@ export default function BusTrackingScreen() {
 
   const updateEta = (currentStopOrder: number) => {
     try {
-      if (currentStopOrder >= routeStops.length - 1) {
-        setEta('Arrived at destination');
-        return;
-      }
+    if (currentStopOrder >= routeStops.length - 1) {
+      setEta('Arrived at destination');
+      return;
+    }
 
-      const nextStop = routeStops[currentStopOrder + 1];
+    const nextStop = routeStops[currentStopOrder + 1];
       if (!nextStop?.scheduled_time) {
         setEta('Time not available');
         return;
@@ -339,17 +375,17 @@ export default function BusTrackingScreen() {
         return;
       }
 
-      const currentTime = new Date();
-      const scheduledTime = new Date();
+    const currentTime = new Date();
+    const scheduledTime = new Date();
       scheduledTime.setHours(hours, minutes, 0);
 
-      const timeDiff = scheduledTime.getTime() - currentTime.getTime();
-      const minutesDiff = Math.floor(timeDiff / (1000 * 60));
+    const timeDiff = scheduledTime.getTime() - currentTime.getTime();
+    const minutesDiff = Math.floor(timeDiff / (1000 * 60));
 
-      if (minutesDiff < 0) {
-        setEta('Delayed');
-      } else {
-        setEta(`${minutesDiff} minutes`);
+    if (minutesDiff < 0) {
+      setEta('Delayed');
+    } else {
+      setEta(`${minutesDiff} minutes`);
       }
     } catch (err) {
       console.error('Error updating ETA:', err);
@@ -360,9 +396,9 @@ export default function BusTrackingScreen() {
   const formatLastUpdated = (timestamp: string) => {
     try {
       if (!timestamp) return 'Not available';
-      const date = new Date(timestamp);
+    const date = new Date(timestamp);
       if (isNaN(date.getTime())) return 'Invalid time';
-      return date.toLocaleTimeString();
+    return date.toLocaleTimeString();
     } catch (err) {
       console.error('Error formatting last updated time:', err);
       return 'Time format error';
@@ -423,7 +459,9 @@ export default function BusTrackingScreen() {
     }
   };
 
+  // Update map ready handler
   const handleMapReady = () => {
+    console.log('Map is ready');
     setIsMapReady(true);
   };
 
@@ -499,12 +537,13 @@ export default function BusTrackingScreen() {
           {!isMapReady && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color="#FFD700" />
+              <Text style={styles.loadingText}>Loading map...</Text>
             </View>
           )}
           <MapView
             ref={mapRef}
             style={styles.map}
-            region={getMapRegion()}
+            region={region}
             provider={PROVIDER_DEFAULT}
             onMapReady={handleMapReady}
             rotateEnabled={false}
@@ -512,11 +551,13 @@ export default function BusTrackingScreen() {
             showsUserLocation={true}
             showsMyLocationButton={true}
             moveOnMarkerPress={false}
+            initialRegion={region}
           >
             <UrlTile 
               urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
               maximumZ={19}
               flipY={false}
+              zIndex={-1}
             />
             {/* Route Line */}
             {routeCoordinates.length > 0 && (
@@ -539,6 +580,7 @@ export default function BusTrackingScreen() {
                 }}
                 title={stop.stop_name}
                 description={`Scheduled: ${stop.scheduled_time}`}
+                zIndex={2}
               >
                 {index === routeStops.length - 1 ? (
                   <View style={styles.destinationMarker}>
@@ -562,6 +604,7 @@ export default function BusTrackingScreen() {
                 }}
                 title={`Bus ${busNumber}`}
                 description={`Updated: ${formatLastUpdated(busLocation.last_updated)}`}
+                zIndex={3}
               >
                 <View style={styles.busMarker}>
                   <MaterialCommunityIcons name="bus" size={24} color={COLORS.BUS} />
@@ -573,29 +616,29 @@ export default function BusTrackingScreen() {
 
           {/* Floating Legend */}
           <View style={[styles.floatingLegend, { backgroundColor: COLORS.BACKGROUND }]}>
-            <View style={styles.legendItem}>
+        <View style={styles.legendItem}>
               <MaterialIcons name="location-on" size={20} color={COLORS.STOP} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>Stop</Text>
-            </View>
-            <View style={styles.legendDivider} />
-            <View style={styles.legendItem}>
+        </View>
+        <View style={styles.legendDivider} />
+        <View style={styles.legendItem}>
               <MaterialIcons name="school" size={20} color={COLORS.DESTINATION} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>College</Text>
-            </View>
-            <View style={styles.legendDivider} />
-            <View style={styles.legendItem}>
+        </View>
+        <View style={styles.legendDivider} />
+        <View style={styles.legendItem}>
               <MaterialCommunityIcons name="bus" size={20} color={COLORS.BUS} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>Bus</Text>
-            </View>
-          </View>
+        </View>
+      </View>
 
           {/* Floating ETA Card */}
           <View style={[styles.floatingEta, { backgroundColor: COLORS.PRIMARY }]}>
             <Ionicons name="time-outline" size={20} color="#fff" />
             <Text style={[styles.etaText, { color: '#fff' }]}>
               {nextStop < routeStops.length ? `ETA: ${eta}` : 'Journey Complete'}
-            </Text>
-          </View>
+          </Text>
+        </View>
         </View>
       ) : null}
     </View>

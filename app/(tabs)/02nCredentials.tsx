@@ -68,7 +68,7 @@ export default function CredentialsScreen() {
           if (driverData && driverData.bus_number) {
             console.log('Driver bus number:', driverData.bus_number);
             router.push({
-              pathname: '/driver/02drivermap',
+              pathname: '/driver/02drivertracking',
               params: { busId: driverData.bus_number }
             });
           } else {

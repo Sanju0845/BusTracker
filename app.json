@@ -4,10 +4,10 @@
     "slug": "BusTrack",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/kmce-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/kmce-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -16,50 +16,40 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.bustrack",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "location",
-          "fetch"
-        ],
-        "NSLocationWhenInUseUsageDescription": "This app needs access to location to track the bus.",
-        "NSLocationAlwaysUsageDescription": "This app needs access to location to track the bus even when in background."
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to show your position on the map.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to location to show your position on the map.",
+        "UIBackgroundModes": ["location", "fetch"]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/kmce-logo.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.bustrack",
       "permissions": [
-        "VIBRATE",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "RECEIVE_BOOT_COMPLETED",
-        "POST_NOTIFICATIONS"
+        "ACCESS_BACKGROUND_LOCATION"
       ],
-      "package": "com.kmce.bustrack",
-      "icon": "./assets/icon.png"
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/kmce-logo.png"
     },
     "plugins": [
       [
-        "expo-notifications",
+        "expo-location",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ffffff",
-          "sounds": [
-            "./assets/notification.wav"
-          ]
+          "locationAlwaysAndWhenInUsePermission": "Allow BusTrack to use your location to show your position on the map."
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "fbe0b5a3-b167-4f2d-9c05-f581f7681e2f"
-      }
-    }
+    ]
   }
 }

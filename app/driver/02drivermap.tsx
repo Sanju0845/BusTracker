@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
@@ -25,27 +25,70 @@ const DriverMapScreen = () => {
   const params = useLocalSearchParams();
   const busId = params.busId;
   
-  // Add check for busId early
-  useEffect(() => {
-    if (!busId) {
-      Alert.alert('Error', 'No bus number provided');
-      router.back();
-    } else {
-      console.log('Bus ID received:', busId);
-    }
-  }, [busId, router]);
-
   const mapRef = useRef<MapView | null>(null);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
-  // Memoize initial region to prevent unnecessary re-renders
-  const initialRegion = useMemo(() => ({
-    latitude: 14.6091,  // Default to Manila
-    longitude: 121.0223,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  }), []);
+  // Update initial region
+  const [region, setRegion] = useState({
+    latitude: 17.3850,
+    longitude: 78.4867,
+    latitudeDelta: 0.02,
+    longitudeDelta: 0.02,
+  });
+
+  // Location permission and tracking setup
+  useEffect(() => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+
+    const setupLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('Permission to access location was denied');
+          return;
+        }
+
+        // Get initial location
+        const currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setLocation(currentLocation as LocationData);
+        setRegion({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
+
+        // Subscribe to location updates
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 10,
+          },
+          (newLocation) => {
+            setLocation(newLocation as LocationData);
+            updateDriverLocation(newLocation as LocationData);
+          }
+        );
+      } catch (err) {
+        console.error('Error setting up location tracking:', err);
+        setErrorMsg('Error setting up location tracking');
+      }
+    };
+
+    setupLocation();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, [busId]);
 
   // Update driver location in database
   const updateDriverLocation = useCallback(async (newLocation: LocationData) => {
@@ -81,67 +124,23 @@ const DriverMapScreen = () => {
     }
   }, [busId]);
 
-  // Modify the location setup to include error handling
-  useEffect(() => {
-    let locationSubscription: Location.LocationSubscription | null = null;
-
-    const setupLocation = async () => {
-      if (!busId) {
-        setErrorMsg('No bus number available');
-        return;
-      }
-
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setErrorMsg('Permission to access location was denied');
-          return;
-        }
-
-        // Get initial location
-        const currentLocation = await Location.getCurrentPositionAsync({});
-        setLocation(currentLocation as LocationData);
-        console.log('Initial location obtained for bus:', busId);
-
-        // Subscribe to location updates
-        locationSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000,
-            distanceInterval: 10,
-          },
-          (newLocation) => {
-            setLocation(newLocation as LocationData);
-            updateDriverLocation(newLocation as LocationData);
-          }
-        );
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setErrorMsg(`Error setting up location tracking: ${errorMessage}`);
-        console.error('Location setup error:', err);
-      }
-    };
-
-    setupLocation();
-
-    // Cleanup subscription on unmount
-    return () => {
-      if (locationSubscription) {
-        locationSubscription.remove();
-      }
-    };
-  }, [busId, updateDriverLocation]);
+  const handleMapReady = () => {
+    console.log('Map is ready');
+    setIsMapReady(true);
+  };
 
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
+        region={region}
         provider={PROVIDER_DEFAULT}
-        initialRegion={initialRegion}
+        onMapReady={handleMapReady}
         showsUserLocation={true}
         showsMyLocationButton={true}
         followsUserLocation={true}
+        initialRegion={region}
       >
         {location && (
           <Marker
@@ -154,6 +153,13 @@ const DriverMapScreen = () => {
           />
         )}
       </MapView>
+
+      {!isMapReady && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={styles.loadingText}>Loading map...</Text>
+        </View>
+      )}
 
       <View style={styles.floatingHeader}>
         <TouchableOpacity 
@@ -244,6 +250,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
