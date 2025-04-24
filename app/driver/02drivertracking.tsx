@@ -30,10 +30,29 @@ export default function DriverTrackingScreen() {
   });
 
   useEffect(() => {
-    requestLocationPermission();
-    return () => {
-      stopLocationTracking();
-    };
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setError('Permission to access location was denied');
+          return;
+        }
+
+        let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch (err) {
+        console.error('Error getting location:', err);
+        // Keep default region if location fails
+      }
+    })();
   }, []);
 
   const requestLocationPermission = async () => {
@@ -179,6 +198,7 @@ export default function DriverTrackingScreen() {
   };
 
   const handleMapReady = () => {
+    console.log('Map is ready');
     setIsMapReady(true);
   };
 
@@ -226,41 +246,41 @@ export default function DriverTrackingScreen() {
                   <Text style={styles.loadingText}>Loading map...</Text>
                 </View>
               )}
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                region={region}
-                provider={PROVIDER_DEFAULT}
-                onMapReady={handleMapReady}
-                rotateEnabled={false}
-                loadingEnabled={true}
-                showsUserLocation={false}
-                showsMyLocationButton={false}
-                moveOnMarkerPress={false}
-                initialRegion={region}
-              >
-                <UrlTile 
-                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  maximumZ={19}
-                  flipY={false}
-                  zIndex={-1}
-                />
-                {currentLocation && (
-                  <Marker
-                    coordinate={{
-                      latitude: currentLocation.latitude,
-                      longitude: currentLocation.longitude,
-                    }}
-                    title={`Bus ${busNumber}`}
-                    description="Current Location"
-                    zIndex={1}
-                  >
-                    <View style={styles.customMarker}>
-                      <Text style={styles.markerEmoji}>🚌</Text>
-                    </View>
-                  </Marker>
-                )}
-              </MapView>
+              {region && (
+                <MapView
+                  ref={mapRef}
+                  style={styles.map}
+                  region={region}
+                  onMapReady={handleMapReady}
+                  rotateEnabled={false}
+                  loadingEnabled={true}
+                  showsUserLocation={false}
+                  showsMyLocationButton={false}
+                  moveOnMarkerPress={false}
+                >
+                  <UrlTile 
+                    urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    maximumZ={19}
+                    flipY={false}
+                    zIndex={-1}
+                  />
+                  {currentLocation && (
+                    <Marker
+                      coordinate={{
+                        latitude: currentLocation.latitude,
+                        longitude: currentLocation.longitude,
+                      }}
+                      title={`Bus ${busNumber}`}
+                      description="Current Location"
+                      zIndex={1}
+                    >
+                      <View style={styles.customMarker}>
+                        <Text style={styles.markerEmoji}>🚌</Text>
+                      </View>
+                    </Marker>
+                  )}
+                </MapView>
+              )}
             </View>
 
             <View style={styles.footer}>

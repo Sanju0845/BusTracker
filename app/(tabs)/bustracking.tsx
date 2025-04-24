@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Vibration, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Vibration, ActivityIndicator, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/authContext';
-import MapView, { Marker, Polyline, UrlTile, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, UrlTile } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -19,14 +19,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Add color constants at the top of the file
+// Color scheme
 const COLORS = {
-  PRIMARY: '#1a73e8',    // Google Maps blue for route
-  STOP: '#e94235',       // Red for stops
-  DESTINATION: '#137333', // Dark green for college
-  BUS: '#f9ab00',        // Orange/amber for bus
-  TEXT: '#202124',       // Dark gray for text
-  BACKGROUND: 'rgba(255, 255, 255, 0.95)', // More opaque white
+  PRIMARY: '#2563EB',    // Modern blue
+  SECONDARY: '#3B82F6',  // Lighter blue
+  STOP: '#EF4444',       // Red for stops
+  DESTINATION: '#10B981', // Green for college
+  BUS: '#F59E0B',        // Amber for bus
+  TEXT: '#1F2937',       // Dark gray for text
+  BACKGROUND: 'rgba(255, 255, 255, 0.95)',
+  CARD: '#FFFFFF',
+  BORDER: '#E5E7EB',
 };
 
 interface RouteStop {
@@ -36,6 +39,8 @@ interface RouteStop {
   latitude: number;
   longitude: number;
   scheduled_time: string;
+  arrival_time: string;
+  departure_time: string;
 }
 
 interface BusLocation {
@@ -53,7 +58,6 @@ export default function BusTrackingScreen() {
   const [currentStop, setCurrentStop] = useState(0);
   const [nextStop, setNextStop] = useState(1);
   const [eta, setEta] = useState('Calculating...');
-  const [studentsCount, setStudentsCount] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const mapRef = useRef<MapView | null>(null);
@@ -62,8 +66,9 @@ export default function BusTrackingScreen() {
   const [lastNotifiedStop, setLastNotifiedStop] = useState<number>(-1);
   const [busStatus, setBusStatus] = useState<string>('');
   const [routeCoordinates, setRouteCoordinates] = useState<any[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Update initial region state with a default value
+  // Default region (Chaitanyapuri)
   const [region, setRegion] = useState({
     latitude: 17.3850,
     longitude: 78.4867,
@@ -109,7 +114,6 @@ export default function BusTrackingScreen() {
     registerForPushNotificationsAsync();
   }, []);
 
-  // Update location permission check
   useEffect(() => {
     (async () => {
       try {
@@ -131,7 +135,6 @@ export default function BusTrackingScreen() {
         });
       } catch (err) {
         console.error('Error getting location:', err);
-        // Keep default region if location fails
       }
     })();
   }, []);
@@ -164,7 +167,7 @@ export default function BusTrackingScreen() {
             sound: true,
             priority: Notifications.AndroidNotificationPriority.HIGH,
             vibrate: [0, 250, 250, 250],
-            color: '#0047AB',
+            color: COLORS.PRIMARY,
           },
           trigger: null,
         });
@@ -176,7 +179,6 @@ export default function BusTrackingScreen() {
 
   const sendNotificationWithCooldown = async (title: string, body: string) => {
     const now = Date.now();
-    // Only send notification if 2 minutes have passed since last notification
     if (now - lastNotificationTime > 2 * 60 * 1000) {
       await sendNotification(title, body);
       setLastNotificationTime(now);
@@ -242,7 +244,6 @@ export default function BusTrackingScreen() {
 
   const fetchBusLocation = async () => {
     try {
-      console.log('Fetching location for bus:', busNumber);
       const { data, error } = await supabase
         .from('bus_locations')
         .select('*')
@@ -257,7 +258,6 @@ export default function BusTrackingScreen() {
       }
 
       if (data) {
-        console.log('Bus location data:', data);
         setBusLocation(data);
         updateStopStatus(data.latitude, data.longitude);
       }
@@ -267,7 +267,6 @@ export default function BusTrackingScreen() {
   };
 
   const updateStopStatus = (lat: number, lng: number) => {
-    // Find the closest stop to the current bus location
     let closestStopIndex = 0;
     let minDistance = Number.MAX_SAFE_INTEGER;
 
@@ -281,14 +280,11 @@ export default function BusTrackingScreen() {
       }
     });
 
-      const currentStopData = routeStops[closestStopIndex];
-      const nextStopData = routeStops[closestStopIndex + 1];
+    const currentStopData = routeStops[closestStopIndex];
+    const nextStopData = routeStops[closestStopIndex + 1];
+    const distanceToStop = minDistance * 111;
 
-      // Calculate distance in kilometers
-      const distanceToStop = minDistance * 111; // Rough conversion from degrees to km
-
-    // Update status and send notifications based on distance
-    if (distanceToStop <= 0.2) { // Within 200 meters
+    if (distanceToStop <= 0.2) {
       if (lastNotifiedStop !== closestStopIndex) {
         setBusStatus(`Arrived at ${currentStopData.stop_name}`);
         sendNotificationWithCooldown(
@@ -299,27 +295,25 @@ export default function BusTrackingScreen() {
         Vibration.vibrate([500, 200, 500]);
       }
     } else if (distanceToStop > 1 && lastNotifiedStop === closestStopIndex) {
-      // Bus has left the stop (more than 1km away)
       setBusStatus(`Left ${currentStopData.stop_name}`);
       sendNotificationWithCooldown(
         `Bus ${busNumber} Departed`,
         `Bus has left ${currentStopData.stop_name}`
       );
-      setLastNotifiedStop(-1); // Reset last notified stop
+      setLastNotifiedStop(-1);
       Vibration.vibrate(500);
-    } else if (distanceToStop <= 1) { // Within 1 km
+    } else if (distanceToStop <= 1) {
       const etaMinutes = calculateETA(currentStopData, nextStopData);
       if (etaMinutes > 0) {
         setBusStatus(`Arriving at ${currentStopData.stop_name} in ${Math.round(distanceToStop * 1000)}m`);
         if (lastNotifiedStop !== closestStopIndex) {
           sendNotificationWithCooldown(
-          `Bus ${busNumber} Approaching`,
+            `Bus ${busNumber} Approaching`,
             `Bus is arriving at ${currentStopData.stop_name} in ${etaMinutes} minutes (${Math.round(distanceToStop * 1000)}m away)`
-        );
+          );
         }
       }
     } else {
-      // Update status for next stop if available
       if (nextStopData) {
         const etaMinutes = calculateETA(currentStopData, nextStopData);
         if (etaMinutes > 0) {
@@ -335,12 +329,12 @@ export default function BusTrackingScreen() {
 
   const calculateETA = (currentStop: RouteStop, nextStop: RouteStop) => {
     try {
-      if (!currentStop?.scheduled_time || !nextStop?.scheduled_time) {
+      if (!currentStop?.arrival_time || !nextStop?.arrival_time) {
         return 0;
       }
 
-      const [currentHours, currentMinutes] = currentStop.scheduled_time.split(':').map(Number);
-      const [nextHours, nextMinutes] = nextStop.scheduled_time.split(':').map(Number);
+      const [currentHours, currentMinutes] = currentStop.arrival_time.split(':').map(Number);
+      const [nextHours, nextMinutes] = nextStop.arrival_time.split(':').map(Number);
       
       if (isNaN(currentHours) || isNaN(currentMinutes) || isNaN(nextHours) || isNaN(nextMinutes)) {
         return 0;
@@ -349,7 +343,7 @@ export default function BusTrackingScreen() {
       const currentTime = currentHours * 60 + currentMinutes;
       const nextTime = nextHours * 60 + nextMinutes;
     
-    return nextTime - currentTime;
+      return nextTime - currentTime;
     } catch (err) {
       console.error('Error calculating ETA:', err);
       return 0;
@@ -358,34 +352,34 @@ export default function BusTrackingScreen() {
 
   const updateEta = (currentStopOrder: number) => {
     try {
-    if (currentStopOrder >= routeStops.length - 1) {
-      setEta('Arrived at destination');
-      return;
-    }
+      if (currentStopOrder >= routeStops.length - 1) {
+        setEta('Arrived at destination');
+        return;
+      }
 
-    const nextStop = routeStops[currentStopOrder + 1];
-      if (!nextStop?.scheduled_time) {
+      const nextStop = routeStops[currentStopOrder + 1];
+      if (!nextStop?.arrival_time) {
         setEta('Time not available');
         return;
       }
 
-      const [hours, minutes] = nextStop.scheduled_time.split(':').map(Number);
+      const [hours, minutes] = nextStop.arrival_time.split(':').map(Number);
       if (isNaN(hours) || isNaN(minutes)) {
         setEta('Invalid time format');
         return;
       }
 
-    const currentTime = new Date();
-    const scheduledTime = new Date();
+      const currentTime = new Date();
+      const scheduledTime = new Date();
       scheduledTime.setHours(hours, minutes, 0);
 
-    const timeDiff = scheduledTime.getTime() - currentTime.getTime();
-    const minutesDiff = Math.floor(timeDiff / (1000 * 60));
+      const timeDiff = scheduledTime.getTime() - currentTime.getTime();
+      const minutesDiff = Math.floor(timeDiff / (1000 * 60));
 
-    if (minutesDiff < 0) {
-      setEta('Delayed');
-    } else {
-      setEta(`${minutesDiff} minutes`);
+      if (minutesDiff < 0) {
+        setEta('Delayed');
+      } else {
+        setEta(`${minutesDiff} minutes`);
       }
     } catch (err) {
       console.error('Error updating ETA:', err);
@@ -396,76 +390,19 @@ export default function BusTrackingScreen() {
   const formatLastUpdated = (timestamp: string) => {
     try {
       if (!timestamp) return 'Not available';
-    const date = new Date(timestamp);
+      const date = new Date(timestamp);
       if (isNaN(date.getTime())) return 'Invalid time';
-    return date.toLocaleTimeString();
+      return date.toLocaleTimeString();
     } catch (err) {
       console.error('Error formatting last updated time:', err);
       return 'Time format error';
     }
   };
 
-  const getMapRegion = () => {
-    try {
-      if (busLocation) {
-        return {
-          latitude: busLocation.latitude,
-          longitude: busLocation.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        };
-      }
-
-      if (routeStops.length > 0) {
-        const validStops = routeStops.filter(stop => 
-          typeof stop.latitude === 'number' && 
-          typeof stop.longitude === 'number'
-        );
-
-        if (validStops.length === 0) {
-          return {
-            latitude: 17.3850,
-            longitude: 78.4867,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
-          };
-        }
-
-        const centerLat = validStops.reduce((sum, stop) => sum + stop.latitude, 0) / validStops.length;
-        const centerLng = validStops.reduce((sum, stop) => sum + stop.longitude, 0) / validStops.length;
-        
-        return {
-          latitude: centerLat,
-          longitude: centerLng,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        };
-      }
-
-      return {
-        latitude: 17.3850,
-        longitude: 78.4867,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      };
-    } catch (err) {
-      console.error('Error calculating map region:', err);
-      return {
-        latitude: 17.3850,
-        longitude: 78.4867,
-        latitudeDelta: 0.1,
-        longitudeDelta: 0.1,
-      };
-    }
-  };
-
-  // Update map ready handler
   const handleMapReady = () => {
-    console.log('Map is ready');
     setIsMapReady(true);
   };
 
-  // Add refresh function
   const handleRefresh = async () => {
     try {
       setIsRefreshing(true);
@@ -480,6 +417,10 @@ export default function BusTrackingScreen() {
     }
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
     <View style={styles.container}>
       {/* Modern Floating Header */}
@@ -489,7 +430,7 @@ export default function BusTrackingScreen() {
           onPress={() => router.back()}
         >
           <View style={styles.backButtonContent}>
-            <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+            <Ionicons name="chevron-back" size={24} color={COLORS.TEXT} />
           </View>
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
@@ -505,13 +446,13 @@ export default function BusTrackingScreen() {
             <Ionicons 
               name="refresh" 
               size={24} 
-              color={isRefreshing ? "#666" : "#1a1a1a"} 
+              color={isRefreshing ? "#666" : COLORS.TEXT} 
             />
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Status Card - adjust position */}
+      {/* Status Card */}
       <View style={[styles.statusCard, { top: 110 }]}>
         <Text style={styles.statusText}>{busStatus || 'Updating...'}</Text>
       </View>
@@ -519,7 +460,7 @@ export default function BusTrackingScreen() {
       {/* Main Content */}
       {loading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
           <Text style={styles.loadingText}>Loading route details...</Text>
         </View>
       ) : error ? (
@@ -536,7 +477,7 @@ export default function BusTrackingScreen() {
         <View style={styles.mapContainer}>
           {!isMapReady && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#FFD700" />
+              <ActivityIndicator size="large" color={COLORS.PRIMARY} />
               <Text style={styles.loadingText}>Loading map...</Text>
             </View>
           )}
@@ -544,7 +485,6 @@ export default function BusTrackingScreen() {
             ref={mapRef}
             style={styles.map}
             region={region}
-            provider={PROVIDER_DEFAULT}
             onMapReady={handleMapReady}
             rotateEnabled={false}
             loadingEnabled={true}
@@ -579,7 +519,7 @@ export default function BusTrackingScreen() {
                   longitude: stop.longitude,
                 }}
                 title={stop.stop_name}
-                description={`Scheduled: ${stop.scheduled_time}`}
+                description={`Arrival: ${stop.arrival_time || 'N/A'}`}
                 zIndex={2}
               >
                 {index === routeStops.length - 1 ? (
@@ -616,29 +556,58 @@ export default function BusTrackingScreen() {
 
           {/* Floating Legend */}
           <View style={[styles.floatingLegend, { backgroundColor: COLORS.BACKGROUND }]}>
-        <View style={styles.legendItem}>
+            <View style={styles.legendItem}>
               <MaterialIcons name="location-on" size={20} color={COLORS.STOP} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>Stop</Text>
-        </View>
-        <View style={styles.legendDivider} />
-        <View style={styles.legendItem}>
+            </View>
+            <View style={styles.legendDivider} />
+            <View style={styles.legendItem}>
               <MaterialIcons name="school" size={20} color={COLORS.DESTINATION} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>College</Text>
-        </View>
-        <View style={styles.legendDivider} />
-        <View style={styles.legendItem}>
+            </View>
+            <View style={styles.legendDivider} />
+            <View style={styles.legendItem}>
               <MaterialCommunityIcons name="bus" size={20} color={COLORS.BUS} />
               <Text style={[styles.legendText, { color: COLORS.TEXT }]}>Bus</Text>
-        </View>
-      </View>
+            </View>
+          </View>
 
           {/* Floating ETA Card */}
           <View style={[styles.floatingEta, { backgroundColor: COLORS.PRIMARY }]}>
             <Ionicons name="time-outline" size={20} color="#fff" />
             <Text style={[styles.etaText, { color: '#fff' }]}>
               {nextStop < routeStops.length ? `ETA: ${eta}` : 'Journey Complete'}
-          </Text>
-        </View>
+            </Text>
+          </View>
+
+          {/* Expandable Route Details */}
+          <TouchableOpacity 
+            style={styles.expandButton}
+            onPress={toggleExpand}
+          >
+            <Ionicons 
+              name={isExpanded ? "chevron-down" : "chevron-up"} 
+              size={24} 
+              color={COLORS.TEXT} 
+            />
+          </TouchableOpacity>
+
+          {isExpanded && (
+            <View style={styles.routeDetails}>
+              <Text style={styles.routeDetailsTitle}>Route Details</Text>
+              {routeStops.map((stop, index) => (
+                <View key={index} style={styles.stopItem}>
+                  <View style={styles.stopDot} />
+                  <View style={styles.stopInfo}>
+                    <Text style={styles.stopName}>{stop.stop_name}</Text>
+                    <Text style={styles.stopTime}>
+                      Arrival: {stop.arrival_time || 'N/A'} | Departure: {stop.departure_time || 'N/A'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       ) : null}
     </View>
@@ -656,14 +625,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: COLORS.BACKGROUND,
     zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 45,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    borderBottomColor: COLORS.BORDER,
   },
   backButton: {
     marginRight: 16,
@@ -682,7 +651,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: COLORS.TEXT,
     marginBottom: 2,
   },
   headerSubtitle: {
@@ -739,18 +708,18 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#FF3B30',
+    color: '#EF4444',
     textAlign: 'center',
     marginBottom: 20,
   },
   button: {
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.PRIMARY,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -771,7 +740,7 @@ const styles = StyleSheet.create({
     bottom: -4,
     width: 2,
     height: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.PRIMARY,
     borderRadius: 1,
   },
   busMarker: {
@@ -783,7 +752,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 6,
     height: 6,
-    backgroundColor: '#FFD700',
+    backgroundColor: COLORS.BUS,
     borderRadius: 3,
   },
   floatingLegend: {
@@ -815,7 +784,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.TEXT,
   },
   floatingEta: {
     position: 'absolute',
@@ -840,4 +809,66 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-});
+  expandButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.BACKGROUND,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  routeDetails: {
+    position: 'absolute',
+    top: 70,
+    left: 16,
+    right: 16,
+    backgroundColor: COLORS.BACKGROUND,
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: Dimensions.get('window').height * 0.6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  routeDetailsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.TEXT,
+    marginBottom: 16,
+  },
+  stopItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stopDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.PRIMARY,
+    marginRight: 12,
+  },
+  stopInfo: {
+    flex: 1,
+  },
+  stopName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.TEXT,
+    marginBottom: 4,
+  },
+  stopTime: {
+    fontSize: 14,
+    color: '#666',
+  },
+}); 
