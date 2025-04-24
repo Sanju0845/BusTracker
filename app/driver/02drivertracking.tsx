@@ -254,12 +254,13 @@ export default function DriverTrackingScreen() {
                   onMapReady={handleMapReady}
                   rotateEnabled={false}
                   loadingEnabled={true}
-                  showsUserLocation={false}
-                  showsMyLocationButton={false}
+                  showsUserLocation={true}
+                  showsMyLocationButton={true}
                   moveOnMarkerPress={false}
+                  initialRegion={region}
                 >
                   <UrlTile 
-                    urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    urlTemplate="http://tile.stamen.com/toner/{z}/{x}/{y}.png"
                     maximumZ={19}
                     flipY={false}
                     zIndex={-1}
