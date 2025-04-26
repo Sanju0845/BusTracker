@@ -18,9 +18,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.bustrack",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app needs access to location to show your position on the map.",
-        "NSLocationAlwaysUsageDescription": "This app needs access to location to show your position on the map.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "NSLocationWhenInUseUsageDescription": "Allow BusTrack to access your location for emergency SOS features.",
+        "NSLocationAlwaysUsageDescription": "Allow BusTrack to access your location for emergency SOS features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow BusTrack to access your location for emergency SOS features.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -30,9 +34,10 @@
       },
       "package": "com.bustrack",
       "permissions": [
+        "ACCESS_BACKGROUND_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "RECEIVE_BOOT_COMPLETED"
       ]
     },
     "web": {
@@ -42,7 +47,21 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow BusTrack to use your location to show your position on the map."
+          "locationAlwaysAndWhenInUsePermission": "Allow BusTrack to access your location for emergency SOS features."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
+      ],
+      [
+        "expo-background-fetch",
+        {
+          "minimumInterval": 1
         }
       ]
     ]

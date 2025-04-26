@@ -150,4 +150,17 @@ WITH bus_stops AS (
         stop_order 
     FROM bus_TS07EP0925
 )
-SELECT * FROM bus_stops ORDER BY bus_number, stop_order; 
+SELECT 
+    bus_number,
+    stop_name,
+    latitude,
+    longitude,
+    arrival_time,
+    departure_time,
+    stop_order
+FROM bus_stops 
+ORDER BY bus_number, stop_order;
+
+-- Grant necessary permissions
+GRANT SELECT ON bus_routes_view TO authenticated;
+GRANT SELECT ON bus_routes_view TO anon; 

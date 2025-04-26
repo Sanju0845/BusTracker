@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,11 +43,13 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <Image
-          source={require('../../assets/kmce-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../../assets/kmce-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
         
         <View style={styles.textContainer}>
           <Text style={styles.title}>BusCoordinate</Text>
@@ -89,10 +91,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     padding: 20,
   },
-  logo: {
-    width: width * 0.6,
+  logoContainer: {
+    width: width * 0.8,
     height: height * 0.2,
-    marginTop: height * 0.1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: height * 0.05,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   textContainer: {
     alignItems: 'center',

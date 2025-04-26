@@ -10,6 +10,13 @@ export default function DriverLayout() {
           title: 'Select Bus',
         }}
       />
+      <Stack.Screen
+        name="04Locshare"
+        options={{
+          headerShown: false,
+          title: 'Location Sharing',
+        }}
+      />
     </Stack>
   );
 } 

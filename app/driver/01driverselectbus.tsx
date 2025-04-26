@@ -44,7 +44,7 @@ export default function DriverSelectBusScreen() {
 
   const handleBusSelect = (busNumber: string) => {
     // Navigate to the driver tracking screen with the selected bus number
-    router.push(`/driver/02drivertracking?busNumber=${busNumber}`);
+    router.push(`/driver/04Locshare?busNumber=${busNumber}`);
   };
 
   return (

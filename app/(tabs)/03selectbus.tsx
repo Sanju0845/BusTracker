@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, SafeAreaView, Platform, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../lib/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width } = Dimensions.get('window');
 
 interface Bus {
   id: number;
@@ -11,6 +16,7 @@ interface Bus {
 }
 
 export default function SelectBusScreen() {
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +63,23 @@ export default function SelectBusScreen() {
   const handleSelectPress = () => {
     if (selectedBus) {
       router.push({
-        pathname: '/(tabs)/04busroute',
+        pathname: '/(tabs)/03tWeather',
         params: { 
           busId: selectedBus.id,
           busNumber: selectedBus.bus_number
         }
       });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear saved credentials
+      await AsyncStorage.removeItem('savedCredentials');
+      // Redirect to home screen
+      router.push('/01home');
+    } catch (error) {
+      console.error('Error during logout:', error);
     }
   };
 
@@ -104,21 +121,42 @@ export default function SelectBusScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Modern Floating Header */}
-      <View style={styles.floatingHeader}>
+    <LinearGradient
+      colors={[theme.BACKGROUND_START, theme.BACKGROUND_END]}
+      style={styles.container}
+    >
+      <TouchableOpacity 
+        style={[styles.themeToggle, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
+        onPress={toggleTheme}
+      >
+        <MaterialCommunityIcons 
+          name={isDarkMode ? "weather-sunny" : "weather-night"} 
+          size={24} 
+          color={theme.TEXT}
+        />
+      </TouchableOpacity>
+
+      {/* Header with Logout Button */}
+      <View style={[styles.header, { backgroundColor: 'transparent' }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <View style={styles.backButtonContent}>
-            <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+          <View style={[styles.backButtonContent, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+            <Ionicons name="chevron-back" size={24} color={theme.TEXT} />
           </View>
         </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Select Bus</Text>
-          <Text style={styles.headerSubtitle}>Choose your bus route</Text>
-        </View>
+        <Image
+          source={require('../../assets/kmce-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={20} color={theme.TEXT} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -128,28 +166,36 @@ export default function SelectBusScreen() {
               key={bus.id}
               style={[
                 styles.busItem,
+                { 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : theme.CARD_BACKGROUND,
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : theme.BORDER 
+                },
                 selectedBus?.id === bus.id && styles.selectedBusItem
               ]}
               onPress={() => handleBusSelect(bus)}
             >
               <View style={[
                 styles.busIcon,
+                { 
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
+                },
                 selectedBus?.id === bus.id && styles.selectedBusIcon
               ]}>
                 <Ionicons 
                   name="bus" 
                   size={24} 
-                  color={selectedBus?.id === bus.id ? "#FFD700" : "#1a1a1a"} 
+                  color={selectedBus?.id === bus.id ? "#FFD700" : theme.TEXT} 
                 />
               </View>
               <View style={styles.busInfo}>
                 <Text style={[
                   styles.busNumber,
-                  selectedBus?.id === bus.id && styles.selectedText
+                  { color: theme.TEXT },
+                  selectedBus?.id === bus.id && { color: "#FFD700" }
                 ]}>Bus {bus.bus_number}</Text>
                 <Text style={[
                   styles.busRoute,
-                  selectedBus?.id === bus.id && styles.selectedRouteText
+                  { color: theme.TEXT_SECONDARY }
                 ]}>{bus.route}</Text>
               </View>
               {selectedBus?.id === bus.id && (
@@ -161,77 +207,85 @@ export default function SelectBusScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.buttonContainer}>
+        <View style={[styles.buttonContainer, { 
+          backgroundColor: 'transparent',
+          borderTopColor: isDarkMode ? 'rgba(255,255,255,0.1)' : theme.BORDER 
+        }]}>
           <TouchableOpacity 
             style={[
               styles.selectButton,
-              !selectedBus && styles.disabledButton
+              { backgroundColor: !selectedBus ? (isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e5e5') : theme.PRIMARY }
             ]}
             onPress={handleSelectPress}
             disabled={!selectedBus}
           >
-            <Text style={styles.selectButtonText}>Track This Bus</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={[styles.selectButtonText, { 
+              color: !selectedBus ? theme.TEXT_SECONDARY : '#fff'
+            }]}>Track This Bus</Text>
+            <Ionicons 
+              name="arrow-forward" 
+              size={20} 
+              color={!selectedBus ? theme.TEXT_SECONDARY : '#fff'} 
+              style={styles.buttonIcon} 
+            />
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+  },
+  themeToggle: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 8,
+    borderRadius: 20,
   },
   content: {
     flex: 1,
-    marginTop: 100,
   },
-  floatingHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    backgroundColor: '#fff',
-    zIndex: 100,
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 45,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    paddingTop: Platform.OS === 'ios' ? 40 : 56,
+    paddingBottom: 12,
+    height: Platform.OS === 'ios' ? 100 : 116,
   },
   backButton: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backButtonContent: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  logo: {
+    width: 80,
+    height: 40,
+    marginLeft: 8,
+  },
   headerTextContainer: {
     flex: 1,
+    marginLeft: 12,
   },
-  headerTitle: {
-    fontSize: 28,
+  headerWelcome: {
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
     fontWeight: '500',
   },
   centerContent: {
@@ -269,30 +323,18 @@ const styles = StyleSheet.create({
   busItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
   },
   selectedBusItem: {
-    backgroundColor: '#fffdf0',
     borderColor: '#FFD700',
   },
   busIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -306,46 +348,39 @@ const styles = StyleSheet.create({
   busNumber: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
     marginBottom: 4,
-  },
-  selectedText: {
-    color: '#1a1a1a',
   },
   busRoute: {
     fontSize: 14,
-    color: '#666',
-  },
-  selectedRouteText: {
-    color: '#666',
   },
   checkmarkContainer: {
     marginLeft: 12,
   },
   buttonContainer: {
     padding: 16,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
   },
   selectButton: {
-    backgroundColor: '#1a1a1a',
     padding: 16,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  disabledButton: {
-    backgroundColor: '#e5e5e5',
-  },
   selectButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
   },
   buttonIcon: {
     marginLeft: 4,
+  },
+  logoutButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
 }); 

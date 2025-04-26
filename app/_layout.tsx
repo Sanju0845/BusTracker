@@ -1,24 +1,107 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { AuthProvider } from '../lib/authContext';
+import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+export default function AppLayout() {
+  const router = useRouter();
 
-export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  const handleBackPress = () => {
+    router.push('/01home');
+  };
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
-    </AuthProvider>
+    <Stack>
+      <Stack.Screen 
+        name="(tabs)" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <Stack.Screen 
+        name="01home" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <Stack.Screen 
+        name="02driverlocation" 
+        options={{ 
+          title: 'Bus Location',
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={{ marginLeft: 10 }}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTitleStyle: {
+            color: '#000',
+            fontWeight: 'bold',
+          },
+        }} 
+      />
+      <Stack.Screen 
+        name="03busroute" 
+        options={{ 
+          title: 'Bus Route',
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={{ marginLeft: 10 }}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTitleStyle: {
+            color: '#000',
+            fontWeight: 'bold',
+          },
+        }} 
+      />
+      <Stack.Screen 
+        name="04Locshare" 
+        options={{ 
+          title: 'Share Location',
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={{ marginLeft: 10 }}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTitleStyle: {
+            color: '#000',
+            fontWeight: 'bold',
+          },
+        }} 
+      />
+      <Stack.Screen 
+        name="05selectbus" 
+        options={{ 
+          title: 'Select Bus',
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={{ marginLeft: 10 }}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTitleStyle: {
+            color: '#000',
+            fontWeight: 'bold',
+          },
+        }} 
+      />
+      <Stack.Screen 
+        name="06login" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+    </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,11 +11,14 @@ import {
   Platform,
   SafeAreaView,
   Image,
+  Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../lib/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CredentialsScreen() {
   const router = useRouter();
@@ -24,6 +27,29 @@ export default function CredentialsScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const { theme, isDarkMode, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    // Check for saved credentials
+    const loadSavedCredentials = async () => {
+      try {
+        const savedCredentials = await AsyncStorage.getItem('savedCredentials');
+        if (savedCredentials) {
+          const { username: savedUsername, password: savedPassword, userType: savedUserType } = JSON.parse(savedCredentials);
+          if (savedUserType === userType) {
+            setUsername(savedUsername);
+            setPassword(savedPassword);
+            setRememberMe(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved credentials:', error);
+      }
+    };
+
+    loadSavedCredentials();
+  }, [userType]);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -48,6 +74,17 @@ export default function CredentialsScreen() {
       }
 
       if (data && data.length > 0) {
+        // Save credentials if remember me is checked
+        if (rememberMe) {
+          await AsyncStorage.setItem('savedCredentials', JSON.stringify({
+            username,
+            password,
+            userType
+          }));
+        } else {
+          await AsyncStorage.removeItem('savedCredentials');
+        }
+
         // Store user info in secure storage or state management
         if (userType === 'student') {
           router.push('/(tabs)/03selectbus');
@@ -68,7 +105,7 @@ export default function CredentialsScreen() {
           if (driverData && driverData.bus_number) {
             console.log('Driver bus number:', driverData.bus_number);
             router.push({
-              pathname: '/driver/02drivertracking',
+              pathname: '/driver/04Locshare',
               params: { busId: driverData.bus_number }
             });
           } else {
@@ -87,14 +124,30 @@ export default function CredentialsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Compact Header */}
-      <View style={styles.header}>
+    <LinearGradient
+      colors={[theme.BACKGROUND_START, theme.BACKGROUND_END]}
+      style={styles.container}
+    >
+      <TouchableOpacity 
+        style={[styles.themeToggle, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}
+        onPress={toggleTheme}
+      >
+        <MaterialCommunityIcons 
+          name={isDarkMode ? "weather-sunny" : "weather-night"} 
+          size={24} 
+          color={theme.TEXT}
+        />
+      </TouchableOpacity>
+
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: 'transparent' }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+          <View style={[styles.backButtonContent, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+            <Ionicons name="chevron-back" size={24} color={theme.TEXT} />
+          </View>
         </TouchableOpacity>
         <Image
           source={require('../../assets/kmce-logo.png')}
@@ -102,8 +155,8 @@ export default function CredentialsScreen() {
           resizeMode="contain"
         />
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerWelcome}>Welcome Back!</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerWelcome, { color: theme.TEXT }]}>Welcome Back!</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.TEXT_SECONDARY }]}>
             {userType === 'student' ? 'Student Login' : 'Driver Login'}
           </Text>
         </View>
@@ -114,18 +167,23 @@ export default function CredentialsScreen() {
         style={styles.content}
       >
         <View style={styles.formContainer}>
-          <LinearGradient
-            colors={['#ffffff', '#f8f9fa']}
-            style={styles.formCard}
-          >
-            <View style={styles.inputContainer}>
-              <View style={styles.inputIconContainer}>
+          <View style={[styles.formCard, { 
+            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : theme.CARD_BACKGROUND,
+            borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : theme.BORDER
+          }]}>
+            <View style={[styles.inputContainer, { 
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : theme.BORDER
+            }]}>
+              <View style={[styles.inputIconContainer, { 
+                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : theme.PRIMARY 
+              }]}>
                 <Ionicons name="person-outline" size={20} color="#FFD700" />
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.TEXT }]}
                 placeholder={userType === 'student' ? "Roll Number" : "Driver ID"}
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.TEXT_SECONDARY}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -133,14 +191,19 @@ export default function CredentialsScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <View style={styles.inputIconContainer}>
+            <View style={[styles.inputContainer, { 
+              backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : theme.BORDER
+            }]}>
+              <View style={[styles.inputIconContainer, { 
+                backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : theme.PRIMARY 
+              }]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#FFD700" />
               </View>
               <TextInput
-                style={[styles.input, styles.passwordInput]}
+                style={[styles.input, styles.passwordInput, { color: theme.TEXT }]}
                 placeholder="Password"
-                placeholderTextColor="#666"
+                placeholderTextColor={theme.TEXT_SECONDARY}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -154,15 +217,31 @@ export default function CredentialsScreen() {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={20}
-                  color="#666"
+                  color={theme.TEXT_SECONDARY}
                 />
               </TouchableOpacity>
+            </View>
+
+            {/* Remember Me Switch */}
+            <View style={styles.rememberMeContainer}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                trackColor={{ false: '#767577', true: theme.PRIMARY }}
+                thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
+              />
+              <Text style={[styles.rememberMeText, { color: theme.TEXT }]}>
+                Remember Me
+              </Text>
             </View>
 
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                (!username || !password) && styles.loginButtonDisabled
+                { backgroundColor: (!username || !password) ? 
+                    (isDarkMode ? 'rgba(255,255,255,0.1)' : '#e5e5e5') : 
+                    theme.PRIMARY 
+                }
               ]}
               onPress={handleLogin}
               disabled={loading || !username || !password}
@@ -171,49 +250,58 @@ export default function CredentialsScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Text style={styles.loginButtonText}>Login</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  <Text style={[styles.loginButtonText, { 
+                    color: (!username || !password) ? theme.TEXT_SECONDARY : '#fff'
+                  }]}>Login</Text>
+                  <Ionicons 
+                    name="arrow-forward" 
+                    size={20} 
+                    color={(!username || !password) ? theme.TEXT_SECONDARY : '#fff'}
+                  />
                 </>
               )}
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
         </View>
 
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, { color: theme.TEXT_SECONDARY }]}>
           KMCE Bus Tracking System
         </Text>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+  },
+  themeToggle: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 8,
+    borderRadius: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 0 : 16,
+    paddingTop: Platform.OS === 'ios' ? 40 : 56,
     paddingBottom: 12,
-    height: 80,
-    backgroundColor: '#fff',
-    borderBottomWidth: 0,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 8,
+    height: Platform.OS === 'ios' ? 100 : 116,
   },
   backButton: {
     width: 40,
     height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonContent: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -229,11 +317,9 @@ const styles = StyleSheet.create({
   headerWelcome: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
   },
   content: {
@@ -245,26 +331,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   formCard: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
     overflow: 'hidden',
   },
   inputIconContainer: {
@@ -272,14 +348,12 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
   },
   input: {
     flex: 1,
     height: 50,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#1a1a1a',
   },
   passwordInput: {
     paddingRight: 50,
@@ -293,7 +367,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginButton: {
-    backgroundColor: '#1a1a1a',
     height: 56,
     borderRadius: 12,
     flexDirection: 'row',
@@ -302,18 +375,23 @@ const styles = StyleSheet.create({
     marginTop: 24,
     gap: 8,
   },
-  loginButtonDisabled: {
-    backgroundColor: '#e5e5e5',
-  },
   loginButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
   footerText: {
     textAlign: 'center',
-    color: '#666',
     fontSize: 14,
     marginTop: 24,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  rememberMeText: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 }); 
