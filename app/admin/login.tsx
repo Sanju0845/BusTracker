@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -16,9 +18,7 @@ export default function AdminLogin() {
 
     setLoading(true);
     try {
-      // Simple authentication check
       if (username.toLowerCase() === 'admin' && password === 'admin') {
-        // Store login state in AsyncStorage
         await AsyncStorage.setItem('isAdminLoggedIn', 'true');
         router.replace('/admin/dashboard');
       } else {
@@ -33,28 +33,46 @@ export default function AdminLogin() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#2196F3', '#1976D2']}
+      style={styles.container}
+    >
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.push('/01home')}
+      >
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
+
       <View style={styles.formContainer}>
         <Text style={styles.title}>Admin Login</Text>
         
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={styles.inputContainer}>
+          <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            placeholderTextColor="#666"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
         
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <View style={styles.inputContainer}>
+          <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#666"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
         
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -66,55 +84,67 @@ export default function AdminLogin() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 40 : 20,
+    left: 20,
+    zIndex: 1,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   formContainer: {
-    width: '80%',
-    backgroundColor: 'white',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+    color: '#fff',
+    marginBottom: 30,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 10,
+    marginBottom: 15,
+    width: '100%',
+    paddingHorizontal: 15,
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 10,
-    marginBottom: 15,
-    borderRadius: 5,
+    flex: 1,
+    height: 50,
+    fontSize: 16,
+    color: '#333',
   },
   button: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#fff',
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 10,
+    width: '100%',
     alignItems: 'center',
+    marginTop: 20,
   },
   buttonDisabled: {
     backgroundColor: '#B0BEC5',
   },
   buttonText: {
-    color: 'white',
+    color: '#2196F3',
     fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

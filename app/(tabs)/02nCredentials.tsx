@@ -59,9 +59,23 @@ export default function CredentialsScreen() {
 
     setLoading(true);
     try {
+      // Check for admin credentials first
+      if (username.toLowerCase() === 'admin' && password === 'admin') {
+        await AsyncStorage.setItem('isAdminLoggedIn', 'true');
+        router.replace('/admin/dashboard');
+        return;
+      }
+
+      // Check for king credentials
+      if (username.toLowerCase() === 'king' && password === 'kong') {
+        await AsyncStorage.setItem('isKingLoggedIn', 'true');
+        router.replace('/king/dashboard');
+        return;
+      }
+
       const table = userType === 'student' ? 'student_profiles' : 'driver_profiles';
       
-      // First, check if the user exists
+      // Check if the user exists
       const { data, error } = await supabase
         .from(table)
         .select('*')

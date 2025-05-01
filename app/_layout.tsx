@@ -102,6 +102,26 @@ export default function AppLayout() {
           headerShown: false 
         }} 
       />
+      {/* Admin Routes */}
+      <Stack.Screen 
+        name="admin/login" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      <Stack.Screen 
+        name="admin/dashboard" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
+      {/* King Dashboard Route */}
+      <Stack.Screen 
+        name="king/dashboard" 
+        options={{ 
+          headerShown: false 
+        }} 
+      />
     </Stack>
   );
 }

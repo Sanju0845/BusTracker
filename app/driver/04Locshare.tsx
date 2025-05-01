@@ -245,36 +245,95 @@ export default function LocationShareScreen() {
 
   const startLocationTracking = async () => {
     try {
-      // Request location permission if not already granted
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('Location permission not granted');
+      // First check if location services are enabled
+      const hasServicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!hasServicesEnabled) {
+        Alert.alert(
+          'Location Services Disabled',
+          'Please enable location services in your device settings to use this feature.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
+
+      // Check foreground permissions
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      if (foregroundStatus !== 'granted') {
+        Alert.alert(
+          'Location Permission Required',
+          'Please grant location permission to use this feature.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
+
+      // Check background permissions
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (backgroundStatus !== 'granted') {
+        Alert.alert(
+          'Background Location Required',
+          'Please grant background location permission for continuous tracking.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
         return;
       }
 
       // Get initial location
       const initialLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation
+        accuracy: Location.Accuracy.Balanced
       });
-      
+
+      if (!initialLocation) {
+        throw new Error('Failed to get initial location');
+      }
+
       // Update initial location
       handleLocationUpdate(initialLocation);
 
-      // Configure location tracking options
+      // Start continuous location tracking
       locationSubscription.current = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5, // Update every 5 meters
-          timeInterval: 1000, // Update every second
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 10, // Update every 10 meters
+          timeInterval: 5000, // Update every 5 seconds
         },
-        handleLocationUpdate
+        (newLocation) => {
+          console.log('New location update:', newLocation);
+          handleLocationUpdate(newLocation);
+        }
       );
 
       setIsSharing(true);
       setError(null);
+
+      // Show success message
+      Alert.alert(
+        'Location Sharing Started',
+        'Your location is now being shared with the system.',
+        [{ text: 'OK' }]
+      );
+
     } catch (err) {
       console.error('Error starting location tracking:', err);
       setError('Failed to start location tracking');
+      
+      Alert.alert(
+        'Error',
+        'Failed to start location tracking. Please check your location settings and try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() }
+        ]
+      );
     }
   };
 
@@ -335,15 +394,60 @@ export default function LocationShareScreen() {
 
   const focusOnCurrentLocation = async () => {
     try {
-      const hasPermission = await checkLocationPermission();
-      if (!hasPermission) return;
+      // First check if location services are enabled
+      const hasServicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!hasServicesEnabled) {
+        Alert.alert(
+          'Location Services Disabled',
+          'Please enable location services in your device settings to use this feature.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
+
+      // Check foreground permissions
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      if (foregroundStatus !== 'granted') {
+        Alert.alert(
+          'Location Permission Required',
+          'Please grant location permission to use this feature.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
+
+      // Check background permissions
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (backgroundStatus !== 'granted') {
+        Alert.alert(
+          'Background Location Required',
+          'Please grant background location permission for continuous tracking.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
 
       console.log("Getting current position...");
       
       // Use balanced accuracy for better compatibility
       const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000, // Update every 5 seconds
+        distanceInterval: 10 // Update every 10 meters
       });
+
+      if (!currentLocation) {
+        throw new Error('Failed to get current location');
+      }
 
       const newLocation = {
         latitude: currentLocation.coords.latitude,
@@ -354,8 +458,18 @@ export default function LocationShareScreen() {
       setLocation(newLocation);
       setZoomLevel(18);
 
-      // Reload the map
-      webViewRef.current?.reload();
+      // Update the map with new location
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          if (typeof map !== 'undefined') {
+            map.setView([${newLocation.latitude}, ${newLocation.longitude}], ${zoomLevel});
+            if (window.busMarker) {
+              window.busMarker.setLatLng([${newLocation.latitude}, ${newLocation.longitude}]);
+            }
+          }
+        `);
+      }
+
       retryAttempts.current = 0; // Reset retry counter on success
 
     } catch (err) {
@@ -375,7 +489,7 @@ export default function LocationShareScreen() {
         setTimeout(() => {
           console.log("Retrying location fetch...");
           focusOnCurrentLocation();
-        }, 1000);
+        }, 2000); // Increased delay to 2 seconds
       } else {
         Alert.alert(
           'Location Error',
